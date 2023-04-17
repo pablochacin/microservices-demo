@@ -21,6 +21,8 @@ import (
 	pb "github.com/GoogleCloudPlatform/microservices-demo/src/frontend/genproto"
 
 	"github.com/pkg/errors"
+
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 )
 
 const (
@@ -50,7 +52,7 @@ func (fe *frontendServer) getProducts(ctx context.Context) ([]*pb.Product, error
 
 func (fe *frontendServer) getProduct(ctx context.Context, id string) (*pb.Product, error) {
 	resp, err := pb.NewProductCatalogServiceClient(fe.productCatalogSvcConn).
-		GetProduct(ctx, &pb.GetProductRequest{Id: id})
+		GetProduct(ctx, &pb.GetProductRequest{Id: id}, retry.WithMax(3))
 	return resp, err
 }
 

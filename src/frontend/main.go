@@ -32,6 +32,8 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 )
 
 const (
@@ -210,14 +212,21 @@ func mustMapEnv(target *string, envKey string) {
 	*target = v
 }
 
+
 func mustConnGRPC(ctx context.Context, conn **grpc.ClientConn, addr string) {
 	var err error
+	opts := []retry.CallOption{
+		retry.WithBackoff(retry.BackoffLinear(250 * time.Millisecond)),
+		retry.WithCodes(codes.Aborted),
+	}
 	ctx, cancel := context.WithTimeout(ctx, time.Second*3)
 	defer cancel()
 	*conn, err = grpc.DialContext(ctx, addr,
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()))
+		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
+		grpc.WithUnaryInterceptor(retry.UnaryClientInterceptor(opts...)),
+	)
 	if err != nil {
 		panic(errors.Wrapf(err, "grpc: failed to connect %s", addr))
 	}
